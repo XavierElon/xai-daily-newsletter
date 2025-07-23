@@ -1,0 +1,15 @@
+[Unit]
+Description=Daily Tech Briefing Service
+After=network.target
+
+[Service]
+Type=oneshot
+User=xxx
+WorkingDirectory=/home/xxx/Documents/coding/xai-daily-newsletter
+ExecStart=/home/xxx/Documents/coding/xai-daily-newsletter/venv/bin/python /home/xxx/Documents/coding/xai-daily-newsletter/scheduler.py
+StandardOutput=journal
+StandardError=journal
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

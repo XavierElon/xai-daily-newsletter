@@ -1,0 +1,11 @@
+[Unit]
+Description=Run daily briefing at 2 AM PDT
+Requires=daily-briefing.service
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+AccuracySec=1m
+
+[Install]
+WantedBy=timers.target

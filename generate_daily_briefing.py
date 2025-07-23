@@ -13,12 +13,13 @@ def generate_daily_briefing(client: Client, today: date):
     Generate a daily briefing for the given date.
     """
     prompt = f"""
-    You are Grok built by xAI. Generate a tech presidential briefing for {today}.
+    You are Grok built by xAI. Generate a tech presidential briefing for {today} containing all the news from yesterday.
     Use live search to gather the latest tech news from reliable sources.
     Structure:
     - Must know: 3-5 key stories with summaries.
     - Good to know: Bullet points on trends/tools.
     - Bullshit police: Critique overhyped claims.
+    - Please make sure each bullet point/story has a title and that title is a link to the source.
     Keep it engaging, factual, and under 1000 words.
     """
     try:
