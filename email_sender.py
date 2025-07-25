@@ -5,67 +5,176 @@ from email.mime.multipart import MIMEMultipart
 from datetime import date
 from pathlib import Path
 from dotenv import load_dotenv
+import markdown
+from aggressive_hacker_template import create_aggressive_hacker_html
 
 load_dotenv()
 
 class EmailSender:
     def __init__(self):
         self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-        self.smtp_port = os.getenv("SMTP_PORT", 587)
+        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
         self.email = os.getenv("EMAIL_ADDRESS")
         self.password = os.getenv("EMAIL_PASSWORD")
         
-        if not all ([self.email, self.password]):
-            raise ValueError("EMAIL_ADDRESS and EMAIL_PASSWORD must be set in the .env file")
+        self.recipients = self._load_recipients()
         
+        if not all([self.email, self.password]):
+            raise ValueError("EMAIL_ADDRESS and EMAIL_PASSWORD must be set in .env")
+        
+    def _load_recipients(self):
+        recipients_file = Path("recipients.txt")
+        if recipients_file.exists():
+            with open(recipients_file, "r") as f:
+                return [line.strip() for line in f.readlines() if line.strip()]
+        return [self.email]
+    
+    def convert_markdown_to_html(self, markdown_content: str) -> str:
+        """Convert Markdown content to HTML with custom styling."""
+        # Convert markdown to HTML
+        html_content = markdown.markdown(markdown_content, extensions=['extra'])
+        
+        # Add custom CSS for better styling
+        styled_html = f"""
+        <style>
+            h1, h2, h3, h4, h5, h6 {{
+                color: #0f0;
+                font-weight: bold;
+                margin-top: 20px;
+                margin-bottom: 10px;
+                text-shadow: 0 0 5px #0f0;
+            }}
+            
+            h1 {{ font-size: 1.8em; }}
+            h2 {{ font-size: 1.5em; }}
+            h3 {{ font-size: 1.3em; }}
+            
+            p {{
+                margin-bottom: 15px;
+                line-height: 1.6;
+            }}
+            
+            ul, ol {{
+                margin-left: 20px;
+                margin-bottom: 15px;
+            }}
+            
+            li {{
+                margin-bottom: 5px;
+            }}
+            
+            strong {{
+                color: #ff0;
+                font-weight: bold;
+            }}
+            
+            em {{
+                color: #09f;
+                font-style: italic;
+            }}
+            
+            a {{
+                color: #0f0;
+                text-decoration: underline;
+            }}
+            
+            a:hover {{
+                color: #ff0;
+            }}
+            
+            blockquote {{
+                border-left: 3px solid #0f0;
+                padding-left: 15px;
+                margin: 15px 0;
+                color: #0a0;
+            }}
+            
+            code {{
+                background: #000;
+                color: #0f0;
+                padding: 2px 5px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+            }}
+            
+            pre {{
+                background: #000;
+                color: #0f0;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+                border: 1px solid #0f0;
+            }}
+        </style>
+        {html_content}
+        """
+        
+        return styled_html
+    
     def send_briefing_email(self, briefing_date: date = None):
+        """Send the daily briefing via email with HTML formatting."""
         if briefing_date is None:
             briefing_date = date.today()
         
+        # Find the briefing file
         month_year = briefing_date.strftime("%m-%Y")
         date_str = briefing_date.strftime("%Y-%m-%d")
         briefing_path = Path("briefings") / month_year / f"briefing_tech_briefing_{date_str}.md"
         
         if not briefing_path.exists():
-            print(f"Error: Briefing file not found for {briefing_date}")
+            print(f"Briefing file not found: {briefing_path}")
             return False
         
+        # Read the briefing content
         with open(briefing_path, "r") as f:
             briefing_content = f.read()
-            
-        # Create email
-        msg = MIMEMultipart()
+        
+        # Convert markdown to HTML
+        html_briefing_content = self.convert_markdown_to_html(briefing_content)
+        
+        # Create email with HTML
+        msg = MIMEMultipart('alternative')
         msg['From'] = self.email
         msg['To'] = self.email
-        msg['Subject'] = f"Daily Tech Briefing - {briefing_date.strftime('%B %d, %Y')}"
+        msg['Subject'] = f"🚀 TECH BRIEFING - {briefing_date.strftime('%B %d, %Y')}"
         
-        # Email body
-        body = f"""
-        Good morning! Here's your daily tech briefing for {briefing_date.strftime('%B %d, %Y')}:
-
+        # Create HTML content with converted markdown
+        html_content = create_aggressive_hacker_html(
+            html_briefing_content, 
+            briefing_date.strftime('%B %d, %Y')
+        )
+        
+        # Create plain text fallback (strip markdown)
+        text_content = f"""
+        Hacker Tech Briefing - {briefing_date.strftime('%B %d, %Y')}
+        
         {briefing_content}
-
-        ---
-        Generated by XavierAI Daily Newsletter
-        """
-        msg.attach(MIMEText(body, 'plain'))
         
-        # Attempt to send email
+        ---
+        Generated by XavierAI
+        """
+        
+        # Attach both HTML and plain text
+        msg.attach(MIMEText(text_content, 'plain'))
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        # Send email
         try:
             server = smtplib.SMTP(self.smtp_server, self.smtp_port)
             server.starttls()
             server.login(self.email, self.password)
             
             text = msg.as_string()
-            server.sendmail(self.email, self.email, text)
+            server.sendmail(self.email, self.recipients, text)
             server.quit()
             
-            print(f"Briefing email sent successfully for {briefing_date}")
+            print(f"🚀 Tech briefing email sent successfully to {self.recipients} for {briefing_date}")
             return True
+            
         except Exception as e:
-            print(f"Error sending email: {e}")
+            print(f"❌ Error sending email: {e}")
             return False
-        
+
 if __name__ == "__main__":
     sender = EmailSender()
     sender.send_briefing_email()
